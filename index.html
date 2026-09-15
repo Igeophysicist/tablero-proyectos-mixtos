@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="theme-color" content="#335955">
+    <title>Estado del Proyecto</title>
+    <style>
+        body    {background-color: #ffffff; font-family: Arial, Helvetica, sans-serif; margin:0;}
+        table   {width:100%; border-collapse:collapse; font-size:14px; border:1px solid #C9B280;}
+        .div1   {border: 3px solid #846623; background:#335955; padding:10px 10px; text-align:center;}
+        .T1     {color:#e6d194; font-size:12px; letter-spacing:1px;}
+        .T2     {color:#ffffff; font-size:22px; font-weight:bold; letter-spacing:1px;}
+        .F1     {background:#f4f1ea;}
+        .F2     {background:#ffffff;}
+        .C1     {width:45%; border:1px solid #C9B280; font-weight:bold; text-align:right; color:#5c574f;}
+        .C2     {border:1px solid #C9B280;}
+        .C3     {font-weight:bold; border:1px solid #C9B280;}
+        .M1     {background:#f4f1ea; text-align:center; font-weight:bold; color:#5c574f;}
+        .D1     {width:100%; text-align:left; font-size:10px; color:#c0c0c0; margin-top:2px; font-style:italic;}
+        .RA     {border:1px solid #C9B280; color:#000000; font-weight:bold; text-align:center; background:#00B050;}
+        .RB     {border:1px solid #C9B280; color:#000000; font-weight:bold; text-align:center; background:#FFFF00;}
+        .RC     {border:1px solid #C9B280; color:#000000; font-weight:bold; text-align:center; background:#FF0000;}
+        .menu   {position:sticky; top:0; background:white; padding:10px; z-index:1000;}
+        .SEL    {width:95%; margin:10px auto; display:block; padding:12px; font-size:16px; border:1px solid #C9B280; border-radius:8px; background:white; color:#335955; font-weight:bold;}
+        .error  {color:#B00020; text-align:center; padding:20px; font-size:14px;}
+        #lockScreen {position:fixed; inset:0; background:#335955; display:flex; align-items:center; justify-content:center; flex-direction:column; z-index:2000; padding:20px; box-sizing:border-box;}
+        #lockScreen h2 {color:#e6d194; font-size:16px; letter-spacing:1px; margin-bottom:16px; text-align:center;}
+        #lockPass {width:100%; max-width:280px; padding:12px; font-size:16px; border:1px solid #C9B280; border-radius:8px; margin-bottom:12px; box-sizing:border-box;}
+        #lockBtn {width:100%; max-width:280px; padding:12px; font-size:16px; font-weight:bold; border:none; border-radius:8px; background:#846623; color:white; cursor:pointer;}
+        #lockError {color:#ffb3b3; font-size:13px; margin-top:10px; min-height:16px;}
+        #contenido {display:none;}
+    </style>
+</head>
+<body>
+
+    <div id="lockScreen">
+        <h2>ACCESO RESTRINGIDO</h2>
+        <input type="password" id="lockPass" placeholder="Contraseña" autocomplete="off">
+        <button id="lockBtn" onclick="verificarPassword()">Entrar</button>
+        <div id="lockError"></div>
+    </div>
+
+    <div id="contenido">
+    <div class="menu">
+        <select id="proyecto" class="SEL" onchange="cargarProyecto()">
+            <option>Cargando...</option>
+        </select>
+    </div>
+
+    <!-- Cuerpo ----------------------------------------------------------------------------------------->
+    <div class="div1"><span class="T1">ESTADO DEL PROYECTO</span><br><span class="T2" id="nombreProyecto"></span></div>
+
+    <table cellpadding="4" cellspacing="0">
+        <tr class="F1"><td class="C1">Socio</td><td class="C2" id="socio"></td></tr>
+        <tr class="F2"><td class="C1">Tecnología</td><td class="C2" id="tecnologia"></td></tr>
+        <tr class="F1"><td class="C1">Ubicación</td><td class="C2" id="ubicacion"></td></tr>
+        <tr class="F2"><td class="C1">Capacidad</td><td class="C2" id="capacidad"></td></tr>
+        <tr class="F1"><td class="C1">Almacenamiento (BESS)</td><td class="C2" id="bess"></td></tr>
+        <tr class="F2"><td class="C1">Horas de Almacenamiento</td><td class="C2" id="horas"></td></tr>
+        <tr class="F1"><td class="C1">Inicio de Construcción</td><td class="C2" id="inicio"></td></tr>
+        <tr class="F2"><td class="C1">COD</td><td class="C2" id="COD"></td></tr>
+        <tr class="F1"><td class="C1">Fecha firma de contrato</td><td class="C2" id="firma"></td></tr>
+        <tr class="F2"><td class="C1">CAPEX (MDD)</td><td class="C3" id="capex"></td></tr>
+        <tr class="M1"><td colspan="2">Avance en trámites y/o permisos</td></tr>
+        <tr class="F2"><td class="C1">Parque</td><td class="C2" id="parque"></td></tr>
+        <tr class="F1"><td class="C1">LT</td><td class="C2" id="lt"></td></tr>
+        <tr class="F2"><td class="C1">Global</td><td class="C2" id="global"></td></tr>
+        <tr class="F1"><td class="C1">Grupo de atención</td><td id="grupo"></td></tr>
+    </table>
+
+    <div id="errorBox"></div>
+    </div>
+
+    <script>
+        let proyectos = {};
+
+        async function cargarDatos(){
+            try {
+                // Ruta relativa: el JSON debe estar en la misma carpeta que este HTML,
+                // y el archivo debe abrirse desde un servidor local (http://...),
+                // no con doble clic (file://), porque fetch() bloquea rutas locales
+                // por seguridad (CORS). Ej: con Python -> "python -m http.server"
+                // en esa carpeta, y luego abrir http://localhost:8000/corrected.html
+                const respuesta = await fetch('dataparsedprueba.json');
+                if (!respuesta.ok) {
+                    throw new Error('HTTP ' + respuesta.status);
+                }
+                proyectos = await respuesta.json();
+                llenarSelector();
+            } catch (error) {
+                document.getElementById('errorBox').innerHTML =
+                    '<p class="error">No se pudo cargar dataparsedprueba.json. ' +
+                    'Verifica que el archivo esté en la misma carpeta y que estés ' +
+                    'viendo esta página desde un servidor local (no con doble clic). ' +
+                    'Detalle: ' + error.message + '</p>';
+                console.error('Error cargando datos:', error);
+            }
+        }
+
+        function llenarSelector(){
+            let selector = document.getElementById("proyecto");
+            selector.innerHTML = "";
+            Object.keys(proyectos).forEach(id => {
+                let p = proyectos[id];
+                let etiqueta = p["TÍTULO 2"] || p["TÍTULO 1"] || ("Proyecto " + id);
+                selector.innerHTML += `<option value="${id}">${etiqueta}</option>`;
+            });
+            cargarProyecto();
+        }
+
+        function cargarProyecto() {
+            let idSeleccionado = document.getElementById("proyecto").value;
+            let p = proyectos[idSeleccionado];
+            if (!p) return;
+
+            document.getElementById("nombreProyecto").innerHTML = p["TÍTULO 2"] || "";
+            document.getElementById("socio").innerHTML = p["Socio"] || "";
+            document.getElementById("tecnologia").innerHTML = p["Tecnología"] || "";
+            document.getElementById("ubicacion").innerHTML = p["Ubicación"] || "";
+            document.getElementById("capacidad").innerHTML = p["Capacidad"] || "";
+            document.getElementById("bess").innerHTML = p["Almacenamiento (BESS)"] || "";
+            document.getElementById("horas").innerHTML = p["Horas de Almacenamiento"] ?? "";
+            document.getElementById("inicio").innerHTML = p["Inicio de Construcción"] || "";
+            document.getElementById("COD").innerHTML = p["Fin de Construcción"] || "";
+            document.getElementById("firma").innerHTML = p["Fecha firma de contrato"] || "";
+            document.getElementById("capex").innerHTML = p["CAPEX"] || "";
+            document.getElementById("parque").innerHTML = p["Parque"] || "";
+            document.getElementById("lt").innerHTML = p["LT"] || "";
+            document.getElementById("global").innerHTML = p["Global"] || "";
+
+            let grupo = document.getElementById("grupo");
+            let grupoValor = p["Grupo de atención"];
+            grupo.innerHTML = grupoValor || "";
+            grupo.className = "";
+            if (grupoValor === "A") grupo.classList.add("RA");
+            else if (grupoValor === "B") grupo.classList.add("RB");
+            else if (grupoValor === "C") grupo.classList.add("RC");
+        }
+
+    </script>
+
+    <script>
+
+        const HASH_ESPERADO = "266bf86d981a0f692188cf122587574bdc1e4a8d2a2978ffdc36c988fd0556d9";
+
+        async function sha256(texto) {
+            const datos = new TextEncoder().encode(texto);
+            const buffer = await crypto.subtle.digest('SHA-256', datos);
+            return Array.from(new Uint8Array(buffer))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function desbloquear() {
+            document.getElementById('lockScreen').style.display = 'none';
+            document.getElementById('contenido').style.display = 'block';
+            cargarDatos();
+        }
+
+        async function verificarPassword() {
+            const valor = document.getElementById('lockPass').value;
+            const hash = await sha256(valor);
+            if (hash === HASH_ESPERADO) {
+                sessionStorage.setItem('acceso_ok', '1');
+                desbloquear();
+            } else {
+                document.getElementById('lockError').textContent = 'Contraseña incorrecta';
+                document.getElementById('lockPass').value = '';
+            }
+        }
+
+        document.getElementById('lockPass').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') verificarPassword();
+        });
+
+        window.onload = function() {
+            // Si ya se validó en esta pestaña/sesión, no volver a pedirla
+            if (sessionStorage.getItem('acceso_ok') === '1') {
+                desbloquear();
+            }
+        };
+    </script>
+
+</body>
+</html>
